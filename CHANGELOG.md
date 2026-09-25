@@ -4,6 +4,18 @@ All notable changes to the Urban-Future-Weather Engine are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/).
 
+## [1.3.2] — 2026-09-26
+
+### Added
+- **Official Docker images on GHCR**: every version tag publishes
+  `ghcr.io/alirezza18/urban-future-weather-engine` (`latest`, semver and
+  major.minor), smoke-tested immediately after push. README quickstart now
+  leads with `docker pull`.
+
+### Fixed
+- Publish workflow smoke test: lowercase GHCR references and host port
+  mapping, so the pushed image is verified end-to-end.
+
 ## [1.3.1] — 2026-09-25
 
 ### Added

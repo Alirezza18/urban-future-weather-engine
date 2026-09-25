@@ -2,7 +2,7 @@
 
 **A map-first explorer for a city-scale, multi-era EPW corpus.**
 
-![version](https://img.shields.io/badge/version-1.3.1-38bdf8)
+![version](https://img.shields.io/badge/version-1.3.2-38bdf8)
 [![CI](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![python](https://img.shields.io/badge/python-3.12-blue)
@@ -65,7 +65,7 @@ If UFWE contributes to your research, please cite it — see
 repository** button) or:
 
 > Karimi, A. (2026). *NEPENTHE | Urban-Future-Weather Engine: a map-first
-> explorer for city-scale, multi-era future weather files* (Version 1.3.1)
+> explorer for city-scale, multi-era future weather files* (Version 1.3.2)
 > [Computer software]. https://github.com/Alirezza18/urban-future-weather-engine
 
 ## Quickstart

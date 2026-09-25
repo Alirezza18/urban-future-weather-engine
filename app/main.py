@@ -46,7 +46,7 @@ def _source_dir(scenario: str | None = None) -> Path:
         return base
     return base / SCENARIOS[scenario]["dir"]
 
-app = FastAPI(title="Urban-Future-Weather Engine", version="1.3.1")
+app = FastAPI(title="Urban-Future-Weather Engine", version="1.3.2")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
