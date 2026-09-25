@@ -59,19 +59,28 @@ def _load_sites() -> list[dict]:
 
     Always read from DATA_DIR (the mounted share): this runs at import time,
     before the corpus sync, and it's a single small file.
+
+    Missing corpus is not fatal: the app boots with zero sites and says so,
+    so `docker run` without a mount yields a healthy-but-empty instance
+    (useful for CI smoke tests) instead of a crash loop.
     """
     sites: list[dict] = []
     path = DATA_DIR / "locations.csv"
-    with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
-        for row in csv.DictReader(fh):
-            try:
-                sites.append({
-                    "id": int(row["epwIndex"]),
-                    "lat": float(row["latitude"]),
-                    "lon": float(row["longitude"]),
-                })
-            except (KeyError, ValueError, TypeError):
-                continue
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
+            for row in csv.DictReader(fh):
+                try:
+                    sites.append({
+                        "id": int(row["epwIndex"]),
+                        "lat": float(row["latitude"]),
+                        "lon": float(row["longitude"]),
+                    })
+                except (KeyError, ValueError, TypeError):
+                    continue
+    except OSError as exc:
+        print(f"[ufwe] WARNING: cannot read {path} ({exc}) — no corpus "
+              f"mounted? Serving an empty catalogue.", flush=True)
+        return sites
     sites.sort(key=lambda s: s["id"])
     return sites
 
@@ -157,6 +166,11 @@ def _sync_corpus() -> None:
     directory walk, not a re-download. After this, 9p is never read again.
     """
     assert LOCAL_DATA_DIR is not None
+    if not DATA_DIR.is_dir():
+        print(f"[ufwe] WARNING: data dir {DATA_DIR} does not exist — no "
+              f"corpus mounted? Skipping sync; UI will show an empty catalogue.",
+              flush=True)
+        return
     LOCAL_DATA_DIR.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()
     copied = skipped = failed = 0
@@ -363,9 +377,11 @@ def _start_artifact_builders() -> None:
     def _worker() -> None:
         if LOCAL_DATA_DIR is None:
             return
-        # wait for the sync to finish (dirs fully populated)
+        # wait for the sync to finish (dirs fully populated) — but give up
+        # after ~10 min so a corpus-less deployment doesn't poll forever
         expected = {cfg["dir"]: None for cfg in SCENARIOS.values()}
-        while True:
+        deadline = time.monotonic() + 600
+        while time.monotonic() < deadline:
             counts = {
                 d: sum(1 for p in (LOCAL_DATA_DIR / d).glob("*.epw")
                        if not p.name.startswith("._"))
@@ -375,6 +391,10 @@ def _start_artifact_builders() -> None:
             if total >= 3000:
                 break
             time.sleep(2)
+        else:
+            print("[ufwe] zip-builder: corpus never appeared — skipping "
+                  "artifact builds", flush=True)
+            return
         for key, cfg in SCENARIOS.items():
             name = f"{key}_all_sites.zip"
             if _zip_status(name)["state"] == "ready":
