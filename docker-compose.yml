@@ -1,0 +1,23 @@
+services:
+  ufwe:
+    build: .
+    image: urban-future-weather-engine:1.3.1
+    container_name: ufwe
+    ports:
+      - "8610:8610"
+    volumes:
+      # Read-only mount of the EPW corpus root (locations.csv + 3 scenario folders)
+      - "D:/alireza app:/data:ro"
+      # First start copies the corpus here (native fs) and serves all reads
+      # from it; the 9p share is then only touched once per file, ever.
+      - "ufwe-data:/localdata"
+      # Persists the precomputed warming deltas across container recreation
+      - "ufwe-cache:/cache"
+      # Built zip artifacts (per-scenario + full corpus downloads)
+      - "ufwe-downloads:/downloads"
+
+volumes:
+  ufwe-data:
+  ufwe-cache:
+  ufwe-downloads:
+    restart: unless-stopped

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run tests (synthetic corpus — no data required)
+        run: python -m pytest tests/ -v
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t urban-future-weather-engine:ci .
+
+      - name: Smoke-test container boots
+        run: |
+          docker run -d --name ufwe-ci -p 8610:8610 \
+            urban-future-weather-engine:ci
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8610/healthz > /dev/null; then
+              echo "container healthy"; exit 0
+            fi
+            sleep 2
+          done
+          echo "container failed to become healthy"; exit 1

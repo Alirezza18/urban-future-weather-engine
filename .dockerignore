@@ -1,0 +1,18 @@
+# Keep the build context minimal
+.git/
+.gitignore
+tests/
+.github/
+*.md
+!README.md
+LICENSE
+CITATION.cff
+*.zip
+downloads/
+cache/
+localdata/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+docker-compose.yml

@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NEPENTHE | Urban-Future-Weather Engine</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1220; --panel:#101a2e; --panel2:#0d1526; --line:#1e2a44;
+    --text:#e5edf8; --muted:#8fa3bf; --accent:#38bdf8;
+    --mid:#f59e0b; --hot:#ef4444;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif}
+  #app{display:flex;flex-direction:column;height:100%}
+  header{display:flex;align-items:baseline;gap:14px;padding:10px 18px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.4px}
+  header h1 span{color:var(--accent)}
+  header .sub{color:var(--muted);font-size:12.5px}
+  #status{margin-left:auto;font-size:12px;color:var(--muted)}
+  #status b{color:var(--accent)}
+  #main{display:flex;flex:1;min-height:0}
+  #map{flex:1;min-width:0;position:relative}
+  #side{width:412px;border-left:1px solid var(--line);background:var(--panel);
+    overflow-y:auto;padding:14px 16px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin-bottom:12px}
+  .card h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600;
+    text-transform:uppercase;letter-spacing:.8px}
+  .hint{color:var(--muted);font-size:13px;line-height:1.5}
+  .dlrow{display:flex;gap:8px;align-items:center;margin:10px 0 2px}
+  .btn{background:#16233c;border:1px solid var(--line);color:var(--accent);
+    border-radius:6px;padding:5px 12px;font-size:13px;cursor:pointer;
+    text-decoration:none;display:inline-block}
+  .btn:hover{background:#1c2c49}
+  .btn.primary{background:#0c4a6e;border-color:#0c4a6e;color:#e0f2fe;font-weight:600}
+  .btn.primary:hover{background:#075985}
+  .scen{border-left:3px solid var(--accent);padding:6px 10px;margin:8px 0;
+    background:#0f1930;border-radius:0 8px 8px 0}
+  .scen .name{font-weight:600;font-size:13.5px}
+  .scen .vals{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .scen .vals b{color:var(--text)}
+  .scen a{font-size:12px;color:var(--accent);text-decoration:none}
+  .scen a:hover{text-decoration:underline}
+  #warming-legend{position:absolute;bottom:18px;left:12px;z-index:500;
+    background:rgba(13,21,38,.92);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-size:11.5px;color:var(--muted);display:none;
+    max-width:260px}
+  #warming-legend .bar{height:10px;width:180px;border-radius:5px;margin:6px 0 3px}
+  #legend-ticks{display:flex;justify-content:space-between;width:180px}
+  #mapctl{position:absolute;top:12px;right:12px;z-index:800;
+    background:rgba(13,21,38,.94);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-size:12.5px;width:235px;
+    max-height:calc(100% - 24px);overflow-y:auto}
+  #mapctl-head{display:flex;justify-content:space-between;align-items:center;
+    cursor:pointer;user-select:none}
+  #mapctl-head button{background:none;border:none;color:var(--muted);
+    cursor:pointer;font-size:13px;padding:0 2px}
+  #mapctl.closed #mapctl-body{display:none}
+  #mapctl label{display:block;margin:6px 0 2px;color:var(--muted)}
+  #mapctl select,#mapctl input[type=search]{width:100%;background:var(--panel);
+    color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+  #mapctl .row{display:flex;align-items:center;gap:8px;margin-top:8px}
+  #search-results{max-height:110px;overflow-y:auto;margin-top:4px}
+  #search-results div{padding:3px 6px;border-radius:5px;cursor:pointer;font-size:12px}
+  #search-results div:hover{background:#16233c}
+  .mono{font-variant-numeric:tabular-nums}
+  .missing{color:#f87171;font-size:12.5px}
+  #chart-wrap{height:225px;position:relative}
+  #hist-wrap{height:170px;position:relative}
+  .chips{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .chip{background:#0f1930;border:1px solid var(--line);border-radius:8px;
+    padding:6px 9px;font-size:11.5px;color:var(--muted)}
+  .chip b{display:block;color:var(--text);font-size:14px;margin-top:1px}
+  .foot{color:#5b6b85;font-size:11px;margin-top:10px;line-height:1.5}
+  .qbad{color:#f87171}
+  .qok{color:#4ade80}
+  #factor-note{font-size:11px;color:#5b6b85;margin-top:4px}
+  /* dark popups with direct EPW downloads */
+  .leaflet-popup-content-wrapper{background:#101a2e;color:var(--text);
+    border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  .leaflet-popup-tip{background:#101a2e;border:1px solid var(--line)}
+  .leaflet-popup-content{margin:10px 14px;font-size:12.5px;line-height:1.9}
+  .leaflet-popup-close-button{color:var(--muted)}
+  .pop-title{font-weight:700;font-size:13.5px;margin-bottom:2px}
+  .pop-dl{display:block;color:var(--accent);text-decoration:none}
+  .pop-dl:hover{text-decoration:underline}
+  .pop-dl.off{color:#475569;pointer-events:none}
+  .pop-more{color:var(--muted);text-decoration:none;font-size:12px}
+  .pop-more:hover{color:var(--accent)}
+  /* methodology card */
+  .steps{margin:8px 0 0;padding:0;list-style:none}
+  .steps li{position:relative;padding:0 0 10px 24px;font-size:12px;
+    color:var(--muted);line-height:1.45}
+  .steps li b{color:var(--text);display:block;font-size:12.5px}
+  .steps li::before{content:"";position:absolute;left:5px;top:4px;width:8px;
+    height:8px;border-radius:50%;background:var(--accent);opacity:.85}
+  .steps li::after{content:"";position:absolute;left:8.5px;top:14px;bottom:-2px;
+    width:1px;background:var(--line)}
+  .steps li:last-child::after{display:none}
+  .meth-note{font-size:11px;color:#5b6b85;margin-top:8px;line-height:1.5}
+  .prov{font-size:11px;color:#64748b;margin-top:3px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>NEPENTHE <span>|</span> Urban-Future-Weather Engine</h1>
+    <div class="sub">Madrid urban EPW corpus &middot; historical / mid-century / 2084 &middot; most-severe years</div>
+    <div id="status">loading sites&hellip;</div>
+  </header>
+  <div id="main">
+    <div id="map">
+      <div id="mapctl">
+        <div id="mapctl-head"><b>City-wide overlay</b><button id="mapctl-toggle" title="collapse">▾</button></div>
+        <div id="mapctl-body">
+          <label>Factor</label>
+          <select id="var-select">
+            <option value="temp" selected>Temperature change (ΔT)</option>
+            <option value="cdd">Cooling demand change (ΔCDD)</option>
+            <option value="rh">Humidity change (ΔRH)</option>
+            <option value="rad">Radiation change (ΔI)</option>
+            <option value="wind">Wind change (Δwind)</option>
+          </select>
+          <label>Scenario</label>
+          <select id="scen-select">
+            <option value="midfuture">Mid-century</option>
+            <option value="future2084">2084</option>
+          </select>
+          <div class="row">
+            <input type="checkbox" id="overlay-on">
+            <span>Color sites by this factor</span>
+          </div>
+          <label>Basemap</label>
+          <select id="base-select">
+            <option value="dark" selected>Dark (Esri)</option>
+            <option value="light">Light (Esri, clean)</option>
+            <option value="streets">Streets (OSM, busy)</option>
+            <option value="sat">Satellite (Esri)</option>
+            <option value="none">None (plain)</option>
+          </select>
+          <label>Find site</label>
+          <input type="search" id="site-search" placeholder="site id (0–1012) or lat,lon" autocomplete="off">
+          <div id="search-results"></div>
+          <div id="overlay-note" class="hint" style="margin-top:6px">checking cache…</div>
+          <div id="factor-note"></div>
+        </div>
+      </div>
+      <div id="warming-legend">
+        <b id="legend-title" style="color:var(--text)">Δ vs historical</b>
+        <div class="bar" id="legend-bar"></div>
+        <div id="legend-ticks"><span id="tick-lo">0</span><span id="tick-mid"></span><span id="tick-hi"></span></div>
+      </div>
+    </div>
+    <div id="side">
+      <div class="card" id="intro-card">
+        <h3>Explorer</h3>
+        <div class="hint">
+          1,013 morphed weather files on a fine Madrid grid, three climate eras.
+          <b>Click any point</b> to grab its EPW file, <b>search a site id</b>,
+          or map how any climate <b>factor changes</b> across the city.
+        </div>
+      </div>
+      <div class="card" id="meth-card">
+        <h3>How these EPWs were built</h3>
+        <ol class="steps">
+          <li><b>Regional climate trajectories</b>
+            EURO-CORDEX downscaled projections across historical, mid-century
+            and late-century horizons; RCP 8.5 as a boundary-condition stress case.</li>
+          <li><b>Hybrid bias correction</b>
+            model output anchored to rural meteorological observations — removes
+            systematic bias without double-counting urban warming.</li>
+          <li><b>Heatwave-preserving morphing</b>
+            heatwaves detected algorithmically so onset, persistence and
+            termination stay intact in the future files.</li>
+          <li><b>Urban Heat Island integration</b>
+            an Urban Weather Generator maps hourly UHI deltas onto a 50 × 50 m
+            grid, driven by morphological parameters from a 3D GIS model
+            (Canillas, Madrid).</li>
+          <li><b>Per-site future EPWs</b>
+            hourly .epw files that simulation tools ingest directly — ready for
+            adaptive comfort, overheating and retrofit studies.</li>
+        </ol>
+        <div class="meth-note">Every downloadable file on this map is an output
+        of this pipeline. Sites absent or corrupt in a scenario are reported in
+        Data quality, never silently skipped.</div>
+      </div>
+      <div class="card" id="site-card" style="display:none">
+        <h3 id="site-title">Site</h3>
+        <div id="site-coords" class="hint mono"></div>
+        <div class="dlrow">
+          <a id="primary-dl" class="btn primary" href="#" download>⬇ Download EPW</a>
+          <a id="bundle-dl" class="btn" href="#" download>⬇ all eras (.zip)</a>
+        </div>
+        <div class="hint" id="dl-hint" style="font-size:11.5px;margin-top:2px"></div>
+        <div class="chips" id="stat-chips"></div>
+        <div id="scen-list"></div>
+      </div>
+      <div class="card" id="chart-card" style="display:none">
+        <h3 id="chart-title">Monthly profiles</h3>
+        <div id="chart-wrap"><canvas id="chart"></canvas></div>
+        <div id="chart-vars" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div class="card" id="hist-card" style="display:none">
+        <h3 id="hist-title">Distribution across sites</h3>
+        <div id="hist-wrap"><canvas id="hist"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Downloads</h3>
+        <div class="hint" style="margin-bottom:8px">EPW files at every level:
+          single file → site bundle → full scenario → entire corpus.</div>
+        <div id="dl-list"><div class="hint">checking artifact status…</div></div>
+        <div style="margin-top:8px">
+          <a class="btn" href="/api/sites.geojson" download="madrid_sites.geojson">⬇ sites.geojson</a>
+          <a class="btn" href="/docs" target="_blank">API docs</a>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Data quality</h3>
+        <div class="hint" id="quality-body">checking corpus…</div>
+      </div>
+      <div class="card">
+        <h3>Corpus</h3>
+        <div class="hint" id="corpus-facts">—</div>
+        <div class="foot">EPW = EnergyPlus Weather format (8,760 hourly rows).
+        “Most-severe year” = worst year selected per period from the source
+        dataset, then morphed per scenario. Sites absent or corrupt in a
+        scenario are reported, never silently skipped.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCEN_KEYS = ["historical","midfuture","future2084"];
+const SCEN_LABEL = {
+  historical:"Historical (most-severe year)",
+  midfuture:"Mid-century (most-severe year)",
+  future2084:"2084 (most-severe year)",
+};
+const SCEN_COLOR = {historical:"#7dd3fc", midfuture:"#f59e0b", future2084:"#ef4444"};
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const VAR_META = {
+  temp:    {label:"Temperature", unit:"°C"},
+  dewpoint:{label:"Dew point",   unit:"°C"},
+  rh:      {label:"Rel. humidity", unit:"%"},
+  glohorz: {label:"Global horiz. radiation", unit:"W/m²"},
+  wind:    {label:"Wind speed",  unit:"m/s"},
+};
+const setStatus = (html)=>document.getElementById("status").innerHTML = html;
+
+/* ---- basemaps (all keyless) ---- */
+const BASEMAPS = {
+  dark:  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+                     {attribution:"Esri, HERE, Garmin", maxZoom:19}),
+  streets: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                     {attribution:"&copy; OpenStreetMap contributors", maxZoom:19}),
+  sat:   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                     {attribution:"Esri, Maxar, Earthstar Geographics", maxZoom:19}),
+  light: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+                     {attribution:"Esri, HERE, Garmin", maxZoom:19}),
+};
+let baseLayer = null;
+function setBasemap(key){
+  if (baseLayer) map.removeLayer(baseLayer);
+  baseLayer = BASEMAPS[key] || null;
+  if (baseLayer) baseLayer.addTo(map);
+}
+
+/* ---- map ---- */
+const map = L.map("map", {preferCanvas:true}).setView([40.4625,-3.647], 13);
+setBasemap("dark");
+
+/* collapse/expand the overlay panel */
+document.getElementById("mapctl-head").addEventListener("click", e=>{
+  const ctl = document.getElementById("mapctl");
+  const closed = ctl.classList.toggle("closed");
+  document.getElementById("mapctl-toggle").textContent = closed ? "▸" : "▾";
+});
+
+const sitesLayer = L.layerGroup().addTo(map);
+let markers = new Map(), chart = null, histChart = null, selected = null;
+let SITES = [], warmingData = null;
+
+/* color scales */
+function warmColor(t){       // 0..1 -> sky -> amber -> red
+  const x = Math.max(0, Math.min(1, t));
+  if (x < .5){
+    const k = x/.5;
+    return `rgb(${Math.round(56+189*k)},${Math.round(189-24*k)},${Math.round(248-134*k)})`;
+  }
+  const k = (x-.5)/.5;
+  return `rgb(${Math.round(245)},${Math.round(165-101*k)},${Math.round(11-33*k)})`;
+}
+function divergeColor(v, lo, hi){   // blue <- 0 -> red, symmetric around 0
+  const m = Math.max(Math.abs(lo), Math.abs(hi)) || 1;
+  const t = Math.max(-1, Math.min(1, v/m));
+  const k = Math.abs(t);
+  const r = t >= 0 ? Math.round(56 + 189*k) : Math.round(56);
+  const g = Math.round(189 - 134*k);
+  const b = t >= 0 ? Math.round(248 - 237*k) : Math.round(56 + 192*k);
+  return `rgb(${r},${g},${b})`;
+}
+function scaleFor(vals){
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  return {lo, hi, mid:(lo+hi)/2};
+}
+
+function currentVarKey(){ return document.getElementById("var-select").value; }
+
+function drawSites(){
+  sitesLayer.clearLayers(); markers.clear();
+  const useOverlay = warmingData && document.getElementById("overlay-on").checked;
+  const scenKey = document.getElementById("scen-select").value;
+  const varKey = currentVarKey();
+  const deltas = new Map();
+  let scale = null;
+  if (useOverlay){
+    const arr = warmingData.scenarios[scenKey].deltas[varKey] || [];
+    arr.forEach(d=>deltas.set(d.id, d.delta));
+    const meta = warmingData.delta_vars[varKey];
+    scale = scaleFor(arr.map(d=>d.delta));
+    const bar = document.getElementById("legend-bar");
+    if (meta && meta.diverging){
+      bar.style.background = "linear-gradient(90deg,#3838f8,#4b93d1,#ef4444)";
+    } else {
+      bar.style.background = "linear-gradient(90deg,#38bdf8,#f59e0b,#ef4444)";
+    }
+    document.getElementById("warming-legend").style.display = "block";
+    document.getElementById("legend-title").textContent = meta ? meta.label : "Δ";
+    document.getElementById("tick-lo").textContent =
+      meta && meta.diverging ? "−"+Math.abs(scale.lo).toFixed(1) : "0";
+    document.getElementById("tick-mid").textContent = (scale.lo+scale.hi>=0 && !(meta&&meta.diverging)) ? "+"+((scale.lo+scale.hi)/2).toFixed(1) : ((scale.lo+scale.hi)/2).toFixed(1);
+    document.getElementById("tick-hi").textContent =
+      (scale.hi>=0 && !(meta&&meta.diverging)) ? "+"+scale.hi.toFixed(1) : scale.hi.toFixed(1);
+    document.getElementById("factor-note").textContent =
+      meta ? `${meta.label} (${meta.unit}) — ${SCEN_LABEL[scenKey].split(" (")[0]} vs historical` : "";
+  } else {
+    document.getElementById("warming-legend").style.display = "none";
+    document.getElementById("factor-note").textContent = "";
+  }
+  for (const s of SITES){
+    const has = deltas.has(s.id);
+    let col;
+    if (has){
+      const meta = warmingData.delta_vars[varKey];
+      const v = deltas.get(s.id);
+      col = meta && meta.diverging
+        ? divergeColor(v, scale.lo, scale.hi)
+        : warmColor(scale.hi > 0 ? v/scale.hi : 0);
+    } else {
+      col = useOverlay ? "#475569" : "#38bdf8";
+    }
+    const m = L.circleMarker([s.lat, s.lon],
+      {radius: has?7:4, color:col, weight:1.2, fillColor:col, fillOpacity:.75});
+    /* popup = instant EPW downloads for every available era */
+    const un = (warmingData && warmingData.unavailable) || {};
+    const unit = warmingData ? warmingData.delta_vars[varKey].unit : "";
+    const dlLink = (scen, lbl)=>
+      (un[scen]||[]).includes(s.id)
+        ? `<span class="pop-dl off">✕ ${lbl} — unavailable</span>`
+        : `<a class="pop-dl" href="/api/epw/${scen}/${s.id}" download>⬇ ${lbl} EPW</a>`;
+    m.bindPopup(`<div class="pop-title">Site ${s.id}</div>
+      <div style="color:var(--muted);margin-bottom:4px">${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}` +
+      (has? ` · Δ ${deltas.get(s.id)} ${unit}` : "") + `</div>
+      ${dlLink("historical","Historical")}
+      ${dlLink("midfuture","Mid-century")}
+      ${dlLink("future2084","2084")}
+      <div style="margin-top:5px"><a class="pop-more" href="/api/site/${s.id}/bundle.zip" download>⬇ all scenarios (.zip)</a> · <a class="pop-more" href="#" onclick="document.getElementById('meth-card').scrollIntoView({behavior:'smooth'});return false;">methodology</a></div>`,
+      {maxWidth:280});
+    m.on("click", ()=>selectSite(s.id));
+    m.bindTooltip(`Site ${s.id}`+(has?` · ${deltas.get(s.id)}`:""));
+    m.addTo(sitesLayer); markers.set(s.id, m);
+  }
+}
+
+/* ---- convex hull for the domain outline ---- */
+function hull(points){
+  const pts = points.map(p=>[p.lon, p.lat]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cross=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const lower=[]; for(const p of pts){ while(lower.length>=2 && cross(lower[lower.length-2],lower[lower.length-1],p)<=0) lower.pop(); lower.push(p);}    
+  const upper=[]; for(let i=pts.length-1;i>=0;i--){const p=pts[i]; while(upper.length>=2 && cross(upper[upper.length-2],upper[upper.length-1],p)<=0) upper.pop(); upper.push(p);}    
+  upper.pop(); lower.pop();
+  return lower.concat(upper).map(p=>[p[1], p[0]]);
+}
+let hullLayer = null;
+function drawHull(){
+  if (hullLayer) map.removeLayer(hullLayer);
+  const ring = hull(SITES);
+  if (ring.length < 3) return;
+  hullLayer = L.polygon(ring, {color:"#38bdf8", weight:1, opacity:.5,
+    fill:false, dashArray:"4 6"}).bindTooltip("Domain outline (1,013 sites)");
+  hullLayer.addTo(map);
+}
+
+/* ---- site panel: download-first ---- */
+async function selectSite(id){
+  if (selected !== null && markers.has(selected))
+    markers.get(selected).setStyle({weight:1.2});
+  selected = id;
+  const m = markers.get(id);
+  if (m){ m.setStyle({weight:3, color:"#fff"}); m.bringToFront(); }
+  history.replaceState(null, "", `#site=${id}`);
+  document.getElementById("intro-card").style.display = "none";
+  document.getElementById("site-card").style.display = "block";
+  document.getElementById("site-title").textContent = `Site ${id}`;
+  document.getElementById("site-coords").textContent = "loading…";
+  document.getElementById("scen-list").innerHTML = "";
+  document.getElementById("stat-chips").innerHTML = "";
+  document.getElementById("chart-card").style.display = "none";
+  const pdl = document.getElementById("primary-dl");
+  pdl.href = `/api/epw/historical/${id}`;
+  pdl.textContent = "⬇ Download EPW";
+  document.getElementById("bundle-dl").href = `/api/site/${id}/bundle.zip`;
+  document.getElementById("dl-hint").textContent = "loads the historical file — pick another era below";
+  let data;
+  try{
+    const res = await fetch(`/api/site/${id}`);
+    if (!res.ok) throw new Error(await res.text());
+    data = await res.json();
+  }catch(e){
+    document.getElementById("site-coords").textContent = "failed: "+e.message;
+    return;
+  }
+  const s = data.site;
+  document.getElementById("site-coords").textContent =
+    `${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`;
+  const ok = data.scenarios.filter(x=>!x.error);
+  const hist = ok.find(x=>x.scenario==="historical");
+  if (hist){
+    pdl.href = `/api/epw/historical/${id}`;
+    document.getElementById("dl-hint").textContent =
+      `historical · ${hist.city} · ${hist.mean_db.toFixed(1)} °C mean`;
+  }
+  /* stat chips (historical baseline) */
+  if (hist){
+    const chips = [
+      ["Cooling DD18", Math.round(hist.cdd18).toLocaleString()+" °C·d"],
+      ["Heating DD18", Math.round(hist.hdd18).toLocaleString()+" °C·d"],
+      ["Hot hrs >32 °C", hist.hot_hours_32.toLocaleString()+" h"],
+      ["Frost hrs <0 °C", hist.frost_hours_0.toLocaleString()+" h"],
+    ];
+    document.getElementById("stat-chips").innerHTML =
+      chips.map(([k,v])=>`<div class="chip">${k}<b>${v}</b></div>`).join("");
+  }
+  const list = document.getElementById("scen-list");
+  const PROV = {
+    historical: "observed anchor year · most-severe selection · UWG urban Δ",
+    midfuture:  "EURO-CORDEX RCP 8.5 · bias-corrected · heatwave-preserving morph · UWG urban Δ",
+    future2084: "EURO-CORDEX RCP 8.5 · bias-corrected · heatwave-preserving morph · UWG urban Δ",
+  };
+  list.innerHTML = "";
+  for (const sc of data.scenarios){
+    if (sc.error){
+      list.insertAdjacentHTML("beforeend",
+        `<div class="scen"><div class="name missing">${sc.scenario}: unavailable</div>
+         <div class="missing">${sc.error.includes("sentinel")||sc.error.includes("no valid") ? "corrupt source file" : sc.error}</div></div>`);
+      continue;
+    }
+    list.insertAdjacentHTML("beforeend",
+      `<div class="scen" style="border-left-color:${sc.color}">
+        <div class="name" style="color:${sc.color}">${sc.label}</div>
+        <div class="vals">mean <b>${sc.mean_db.toFixed(1)} °C</b> ·
+          RH <b>${sc.means.rh?.toFixed(0) ?? "–"}%</b> ·
+          rad <b>${sc.means.glohorz?.toFixed(0) ?? "–"} W/m²</b> ·
+          wind <b>${sc.means.wind?.toFixed(1) ?? "–"} m/s</b>
+        </div>
+        <div class="vals" style="margin-top:4px">
+          <a href="/api/epw/${sc.scenario}/${id}" download>⬇ EPW — ${sc.label.split(" (")[0]}</a>
+        </div>
+        ${PROV[sc.scenario] ? `<div class="prov">${PROV[sc.scenario]}</div>` : ""}
+       </div>`);
+  }
+  drawChart(ok);
+}
+
+/* ---- multi-variable monthly chart ---- */
+let chartVar = "temp";
+let lastChartScens = [];
+function drawChart(scens){
+  lastChartScens = scens;
+  document.getElementById("chart-card").style.display = "block";
+  const meta = VAR_META[chartVar];
+  document.getElementById("chart-title").textContent =
+    `Monthly ${meta.label.toLowerCase()} (${meta.unit})`;
+  const picker = document.getElementById("chart-vars");
+  picker.innerHTML = Object.entries(VAR_META).map(([k,v])=>
+    `<a class="btn" data-v="${k}" style="${k===chartVar?"background:#0c4a6e;color:#e0f2fe":""}">${v.label}</a>`).join("");
+  picker.querySelectorAll("a").forEach(a=>a.onclick = ()=>{
+    chartVar = a.dataset.v; drawChart(lastChartScens);
+  });
+  const ctx = document.getElementById("chart");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type:"line",
+    data:{ labels:MONTHS,
+      datasets: scens.map(sc=>({
+        label: sc.label.split(" (")[0],
+        data: sc.monthly[chartVar] || sc.monthly_db,
+        borderColor: sc.color, backgroundColor: sc.color+"22",
+        tension:.3, pointRadius:2, borderWidth:2,
+        borderDash: sc.label.startsWith("Historical") ? [6,4] : [],
+      }))},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#8fa3bf", boxWidth:14, font:{size:11}}}},
+      scales:{ x:{ticks:{color:"#8fa3bf", font:{size:10}}, grid:{color:"#1e2a44"}},
+               y:{ticks:{color:"#8fa3bf", font:{size:10}},
+                  grid:{color:"#1e2a44"},
+                  title:{display:true, text:meta.unit,
+                         color:"#5b6b85", font:{size:10}}} } }
+  });
+}
+
+/* ---- histogram of the chosen factor across sites ---- */
+function drawHist(warming){
+  const scenKey = document.getElementById("scen-select").value;
+  const varKey = currentVarKey();
+  const arr = (warming.scenarios[scenKey].deltas[varKey] || []).map(d=>d.delta);
+  if (!arr.length) return;
+  const meta = warming.delta_vars[varKey];
+  document.getElementById("hist-card").style.display = "block";
+  document.getElementById("hist-title").textContent =
+    `${meta.label} — distribution (${meta.unit})`;
+  const bins = new Array(16).fill(0);
+  const lo = Math.min(...arr), hi = Math.max(...arr), span = hi-lo || 1;
+  arr.forEach(d=>{ bins[Math.min(15, Math.floor((d-lo)/span*16))]++; });
+  const labels = bins.map((_,i)=>(lo+span*(i+.5)/16).toFixed(2));
+  if (histChart) histChart.destroy();
+  histChart = new Chart(document.getElementById("hist"), {
+    type:"bar",
+    data:{labels, datasets:[{data:bins,
+      backgroundColor:"#f59e0b66", borderColor:"#f59e0b", borderWidth:1}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{title:items=>`Δ ≈ ${items[0].label} ${meta.unit}`}}},
+      scales:{x:{ticks:{color:"#8fa3bf",font:{size:9},maxRotation:0,autoSkip:true},
+                 grid:{display:false}},
+              y:{ticks:{color:"#8fa3bf",font:{size:9}},grid:{color:"#1e2a44"}}}}
+  });
+}
+
+/* ---- search & deep links ---- */
+function parseHash(){
+  const m = location.hash.match(/site=(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function doSearch(q){
+  const out = document.getElementById("search-results");
+  out.innerHTML = "";
+  q = q.trim();
+  if (!q) return;
+  const ll = q.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  let hits = [];
+  if (ll){
+    const [la, lo] = [parseFloat(ll[1]), parseFloat(ll[2])];
+    hits = SITES.map(s=>({s, d:(s.lat-la)**2+(s.lon-lo)**2}))
+      .sort((a,b)=>a.d-b.d).slice(0,5).map(x=>x.s);
+  } else {
+    const n = parseInt(q, 10);
+    if (!isNaN(n) && String(n) === q) hits = SITES.filter(s=>s.id===n);
+  }
+  for (const s of hits){
+    const d = document.createElement("div");
+    d.textContent = `Site ${s.id} — ${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`;
+    d.onclick = ()=>{ map.setView([s.lat,s.lon], 16); selectSite(s.id); out.innerHTML=""; };
+    out.appendChild(d);
+  }
+  if (!hits.length) out.innerHTML = `<div class="missing">no match</div>`;
+}
+
+/* ---- quality card ---- */
+function renderQuality(){
+  const el = document.getElementById("quality-body");
+  if (!warmingData){ el.textContent = "computing corpus stats…"; return; }
+  const un = warmingData.unavailable || {};
+  const parts = [];
+  for (const k of SCEN_KEYS){
+    const n = (un[k]||[]).length;
+    const avail = SITES.length - n;
+    parts.push(`<div>${SCEN_LABEL[k]}: <b class="${n? "qbad":"qok"}">${avail}/${SITES.length} available</b>` +
+      (n? ` — <span class="mono">${un[k].join(", ")}</span>`:"") + `</div>`);
+  }
+  el.innerHTML = parts.join("");
+}
+
+/* ---- downloads panel ---- */
+const DL_LABEL = {
+  "historical_all_sites.zip":  "Historical — all sites",
+  "midfuture_all_sites.zip":   "Mid-century — all sites",
+  "future2084_all_sites.zip":  "2084 — all sites",
+  "ufwe_full_corpus.zip":      "Full corpus (3 scenarios + locations)",
+};
+function fmtMB(b){ return (b/1e6).toFixed(0)+" MB"; }
+async function refreshDownloads(){
+  const el = document.getElementById("dl-list");
+  try{
+    const j = await (await fetch("/api/downloads")).json();
+    el.innerHTML = j.artifacts.map(a=>{
+      if (a.state === "ready")
+        return `<div style="margin:4px 0"><a class="btn" href="/api/downloads/${a.name}" download>⬇ ${DL_LABEL[a.name]||a.name}</a> <span class="hint mono">${fmtMB(a.bytes)}</span></div>`;
+      if (a.state === "building")
+        return `<div style="margin:4px 0"><span class="hint">⏳ ${DL_LABEL[a.name]||a.name} — building…</span></div>`;
+      return `<div style="margin:4px 0"><span class="hint">• ${DL_LABEL[a.name]||a.name} — queued</span></div>`;
+    }).join("");
+    if (j.artifacts.some(a=>a.state !== "ready")) setTimeout(refreshDownloads, 8000);
+  }catch(e){
+    el.innerHTML = `<div class="hint">status unavailable</div>`;
+  }
+}
+
+/* ---- boot ---- */
+async function boot(){
+  try{
+    const r = await fetch("/api/sites"); const j = await r.json();
+    SITES = j.sites;
+    document.getElementById("corpus-facts").innerHTML =
+      `<b>${j.count}</b> sites · 3 scenarios · ~8,760 hourly records each.<br>
+       Variables tracked: temperature, dew point, RH, radiation, wind.`;
+  }catch(e){ setStatus("sites failed"); return; }
+  drawSites();
+  drawHull();
+  refreshDownloads();
+  setStatus(`<b>${SITES.length}</b> sites · warming: <span id="wstate">checking…</span>`);
+  pollWarming();
+  const hid = parseHash();
+  if (hid !== null && markers.has(hid)){
+    const s = SITES.find(x=>x.id===hid);
+    if (s){ map.setView([s.lat, s.lon], 15); selectSite(hid); }
+  }
+}
+async function pollWarming(){
+  const note = document.getElementById("overlay-note");
+  for(;;){
+    try{
+      const r = await fetch("/api/warming");
+      const j = await r.json();
+      if (r.status === 202){
+        document.getElementById("wstate").textContent = `${j.done}/${j.total}`;
+        note.textContent = `computing baseline… ${Math.round(100*j.done/j.total)}%`;
+        await new Promise(res=>setTimeout(res, 4000));
+        continue;
+      }
+      warmingData = j;
+      document.getElementById("wstate").textContent = "ready ✓";
+      const un = j.unavailable || {};
+      const totUn = SCEN_KEYS.reduce((a,k)=>a+(un[k]||[]).length, 0);
+      note.textContent = `ready · ${j.n_sites} sites · ΔT: ` +
+        Object.entries(j.scenarios).map(([k,v])=>{
+          const ds = v.deltas.temp.map(d=>d.delta);
+          const mean = ds.reduce((a,b)=>a+b,0)/ds.length;
+          return `${k} +${mean.toFixed(1)}`;
+        }).join(", ") + (totUn? ` · ${totUn} unavailable`:"");
+      renderQuality();
+      applyOverlay();
+      return;
+    }catch(e){
+      note.textContent = "warming unavailable";
+      document.getElementById("wstate").textContent = "unavailable";
+      return;
+    }
+  }
+}
+function applyOverlay(){
+  drawSites();
+  if (selected !== null) selectSite(selected);
+  if (warmingData) drawHist(warmingData);
+}
+document.getElementById("overlay-on").addEventListener("change", applyOverlay);
+document.getElementById("scen-select").addEventListener("change", applyOverlay);
+document.getElementById("var-select").addEventListener("change", applyOverlay);
+document.getElementById("base-select").addEventListener("change",
+  e=>setBasemap(e.target.value));
+document.getElementById("site-search").addEventListener("input",
+  e=>doSearch(e.target.value));
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: >-
+  If you use the Urban-Future-Weather Engine or its EPW corpus in your
+  research, please cite it.
+title: >-
+  NEPENTHE | Urban-Future-Weather Engine: a map-first explorer for
+  city-scale, multi-era future weather files
+authors:
+  - family-names: Karimi
+    given-names: Alireza
+    orcid: https://orcid.org/0000-0002-6296-9496
+    affiliation: Universidad de Sevilla
+type: software
+version: 1.3.1
+date-released: "2026-09-25"
+license: MIT
+repository-code: https://github.com/Alirezza18/urban-future-weather-engine
+abstract: >-
+  A web platform that serves future microclimate weather files (EPW) for
+  building- and district-scale climate-resilience simulation. The engine
+  fuses EURO-CORDEX regional climate projections, heatwave-preserving
+  morphing and Urban Heat Island intensification (Urban Weather Generator
+  on a 50 x 50 m grid driven by 3D GIS morphology) into hourly weather
+  files for historical, mid-century and 2084 horizons, and exposes them
+  through an interactive map with direct downloads and per-file provenance.
+keywords:
+  - EPW
+  - future weather files
+  - urban heat island
+  - climate change
+  - building performance simulation
+  - morphing
+  - EURO-CORDEX
+  - urban climate
