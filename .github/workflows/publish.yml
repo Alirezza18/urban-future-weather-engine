@@ -49,8 +49,12 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Smoke-test the published image
+        env:
+          IMAGE: ghcr.io/${{ env.IMAGE_NAME }}:latest
         run: |
-          docker run -d --name ufwe-pub ghcr.io/${{ env.IMAGE_NAME }}:latest
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          docker pull "$IMAGE"
+          docker run -d --name ufwe-pub "$IMAGE"
           for i in $(seq 1 20); do
             if curl -sf http://localhost:8610/healthz > /dev/null; then
               echo "published image healthy"; exit 0
