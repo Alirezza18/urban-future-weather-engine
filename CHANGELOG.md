@@ -20,6 +20,11 @@ versions follow [SemVer](https://semver.org/).
 - Clean keyless **Light (Esri)** basemap added; OSM relabeled as "busy" to
   set expectations about its POI clutter.
 
+### Infrastructure
+- GitHub Actions **publish workflow**: every `v*` tag (or manual dispatch)
+  builds the image and pushes it to `ghcr.io/alirezza18/urban-future-weather-engine`
+  (`latest`, semver and major.minor tags), then smoke-tests the published image.
+
 ## [1.3.0] — 2026-09-25
 
 ### Added

@@ -6,7 +6,7 @@
 [![CI](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![python](https://img.shields.io/badge/python-3.12-blue)
-![docker](https://img.shields.io/badge/docker-ready-2496ED)
+[![Publish to GHCR](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/publish.yml/badge.svg)](https://github.com/Alirezza18/urban-future-weather-engine/actions/workflows/publish.yml)
 
 > **v1.3** — download-first site card: one primary **Download EPW** button,
 > per-scenario EPW links, a one-click all-scenarios `.zip`, and stat chips
@@ -69,6 +69,22 @@ repository** button) or:
 > [Computer software]. https://github.com/Alirezza18/urban-future-weather-engine
 
 ## Quickstart
+
+**Pull the published image** (no clone needed):
+
+```bash
+docker pull ghcr.io/alirezza18/urban-future-weather-engine:latest
+
+docker run -d --name ufwe -p 8610:8610 \
+  -v "D:/path/to/corpus:/data:ro" \
+  -v ufwe-data:/localdata \
+  -v ufwe-cache:/cache \
+  -v ufwe-downloads:/downloads \
+  ghcr.io/alirezza18/urban-future-weather-engine:latest
+# → http://localhost:8610
+```
+
+Or build from source:
 
 ```bash
 # from this directory
