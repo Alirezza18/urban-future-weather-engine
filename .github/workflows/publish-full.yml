@@ -1,0 +1,70 @@
+name: Publish data-included image
+
+# Builds and pushes ghcr.io/<repo>:full — the engine with the Madrid
+# corpus baked in, runnable anywhere with zero mounts. The corpus comes
+# from the `madrid-epw-corpus.zip` asset attached to the latest release,
+# so no secrets or local uploads are ever needed.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve corpus asset URL (latest release)
+        id: asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          URL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+            | grep -o '"browser_download_url": *"[^"]*madrid-epw-corpus\.zip"' \
+            | head -1 | sed 's/.*\(https[^"]*\)"/\1/')
+          if [ -z "$URL" ]; then
+            echo "madrid-epw-corpus.zip asset not found on latest release" >&2
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download and unpack corpus
+        run: |
+          curl -sL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -o corpus.zip "${{ steps.asset.outputs.url }}"
+          mkdir corpus-root
+          cd corpus-root && unzip -q ../corpus.zip && cd ..
+          ls corpus-root
+          test -f corpus-root/locations.csv
+          test -d "corpus-root/Historical_MostSevere"
+
+      - name: Build data-included image
+        run: |
+          IMG="ghcr.io/${{ github.repository }}"
+          IMG=$(echo "$IMG" | tr '[:upper:]' '[:lower:]')
+          docker build -f Dockerfile.data -t "$IMG:full" corpus-root
+          echo "img=$IMG" >> "$GITHUB_ENV"
+
+      - name: Smoke-test with zero mounts
+        run: |
+          docker run -d --name ufwe-full -p 8610:8610 "${{ env.img }}:full"
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8610/healthz | grep -q '"warming_ready":true'; then
+              echo "data-included image healthy"; exit 0
+            fi
+            sleep 5
+          done
+          echo "full image failed to become healthy"; exit 1
+
+      - name: Push to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} --password-stdin
+          docker push "${{ env.img }}:full"

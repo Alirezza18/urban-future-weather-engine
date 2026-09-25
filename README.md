@@ -70,7 +70,15 @@ repository** button) or:
 
 ## Quickstart
 
-**Pull the published image** (no clone needed):
+**Anywhere in the world, app + full Madrid corpus, one command** (zero mounts, zero data files):
+
+```bash
+docker run -d --name ufwe -p 8610:8610 \
+  ghcr.io/alirezza18/urban-future-weather-engine:full
+# → http://localhost:8610
+```
+
+**Prefer bring-your-own-corpus?** Pull the code-only image and mount your data:
 
 ```bash
 docker pull ghcr.io/alirezza18/urban-future-weather-engine:latest
@@ -83,6 +91,10 @@ docker run -d --name ufwe -p 8610:8610 \
   ghcr.io/alirezza18/urban-future-weather-engine:latest
 # → http://localhost:8610
 ```
+
+**Just want the data?** Download the corpus directly — no Docker at all:
+[`madrid-epw-corpus.zip` (722 MB)](https://github.com/Alirezza18/urban-future-weather-engine/releases/download/v1.3.2/madrid-epw-corpus.zip)
+— `locations.csv` + all three scenario folders, sha256-stamped on the release page.
 
 Or build from source:
 

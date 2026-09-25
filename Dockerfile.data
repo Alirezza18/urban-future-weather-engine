@@ -1,0 +1,27 @@
+# Data-included variant of the Urban-Future-Weather Engine.
+#
+# Build context is the CORPUS ROOT (locations.csv + the 3 scenario folders),
+# not this repository:
+#
+#   docker build -f Dockerfile.data -t ufwe-full:stage /path/to/corpus
+#
+# The result needs NO volume mounts: run it anywhere and the whole
+# 1,013-site, 3-era corpus (~740 MB) is served from inside the image.
+#
+# Differences from the standard image:
+#   - UFWE_LOCAL_DATA_DIR is cleared: the corpus is read straight from
+#     /data (already local disk inside the container — no sync needed).
+#   - Corpus-level zip artifacts (downloads panel) are NOT baked in;
+#     single EPWs and per-site bundles work fully.
+FROM ghcr.io/alirezza18/urban-future-weather-engine:1.3.2
+
+ENV UFWE_LOCAL_DATA_DIR=""
+
+COPY . /data
+
+# Drop macOS AppleDouble junk if present in the source corpus.
+# Base image ends with USER sofuser — switch back to root for the chown.
+USER root
+RUN find /data -name '._*' -type f -delete 2>/dev/null; \
+    chown -R sofuser:sofuser /data
+USER sofuser
