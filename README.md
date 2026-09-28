@@ -179,12 +179,12 @@ Design choices:
 - [ ] Zip-a-selection batch export (draw a polygon, download its sites)
 - [ ] UTCI / thermal-comfort metrics per site
 - [ ] Batch EPW export (zip a selection)
-- [ ] GHCR publication + CI mirror of the Auto-SOF pipeline
+- [x] GHCR publication + CI (published: `ghcr.io/alirezza18/urban-future-weather-engine`)
 
 ## Author & context
 
 **[Alireza Karimi](https://github.com/Alirezza18)** — Computational Building
-Scientist, PhD candidate (Architecture), Universidad de Sevilla.
+Scientist, PhD in Architecture (Universidad de Sevilla, 2026).
 UFWE is the web front of the Urban-Future-Weather research framework;
 its sibling project [nepenthe-auto-sof](https://github.com/Alirezza18/nepenthe-auto-sof)
 provides no-code surrogate-based optimization over datasets like this one.
